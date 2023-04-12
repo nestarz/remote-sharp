@@ -4,12 +4,13 @@ import axios from "axios";
 import { URL } from "node:url";
 
 export default async (req, res) => {
-  const { url, ...queryOptions } = req.query;
+  const { url: src, ...queryOptions } = req.query;
 
-  if (!url) return res.status(400).send("Image URL is required");
+  if (!src) return res.status(400).send("Image URL is required");
 
   try {
-    const filename = new URL(url).pathname.split("/").pop();
+    const url = new URL(decodeURIComponent(src));
+    const filename = url.pathname.split("/").pop();
     const stream = (await axios({ url, responseType: "stream" })).data;
     const sharpInstance = stream.pipe(sharp());
 
@@ -21,7 +22,10 @@ export default async (req, res) => {
       }
 
     const formatOut = sharpInstance.options.formatOut;
-    const newFilename = filename.replace(/(\.)[^.]*?$/, `$1${formatOut}`);
+    const newFilename = filename.replace(
+      /(\.)([^.]*?)$/,
+      (...a) => `${a[1]}${formatOut === "input" ? a[2] : formatOut}`
+    );
 
     sharpInstance.pipe(
       res.writeHead(200, {
