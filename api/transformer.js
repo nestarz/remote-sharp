@@ -6,6 +6,7 @@ import { URL } from "node:url";
 const tryJSON = (value) => {
   try {
     return JSON.parse(value);
+  }
   catch (error) {
     console.error(error);
     return null;
