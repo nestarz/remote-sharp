@@ -3,6 +3,15 @@ import sharp from "sharp";
 import axios from "axios";
 import { URL } from "node:url";
 
+const tryJSON = (value) => {
+  try {
+    return JSON.parse(value);
+  catch (error) {
+    console.error(error);
+    return null;
+  }
+}
+
 export default async (req, res) => {
   const { url: src, options, ...queryOptions } = req.query;
 
@@ -13,7 +22,7 @@ export default async (req, res) => {
     const filename = url.pathname.split("/").pop();
     const stream = (await axios({ url, responseType: "stream" })).data;
     const sharpInstance = stream.pipe(
-      sharp(options ? JSON.parse(options) : undefined)
+      (options?.length > 1 && tryJSON(options)) ? sharp(JSON.parse(options)) : sharp()
     );
 
     for (const [option, value] of Object.entries(queryOptions))
