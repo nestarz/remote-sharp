@@ -4,7 +4,7 @@ import axios from "axios";
 import { URL } from "node:url";
 
 export default async (req, res) => {
-  const { url: src, ...queryOptions } = req.query;
+  const { url: src, options, ...queryOptions } = req.query;
 
   if (!src) return res.status(400).send("Image URL is required");
 
@@ -12,7 +12,9 @@ export default async (req, res) => {
     const url = new URL(decodeURIComponent(src));
     const filename = url.pathname.split("/").pop();
     const stream = (await axios({ url, responseType: "stream" })).data;
-    const sharpInstance = stream.pipe(sharp());
+    const sharpInstance = stream.pipe(
+      sharp(options ? JSON.parse(options) : undefined)
+    );
 
     for (const [option, value] of Object.entries(queryOptions))
       if (typeof sharpInstance[option] === "function") {
