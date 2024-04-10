@@ -1,7 +1,10 @@
+import { URL } from "node:url";
+import { Readable } from "node:stream";
+
 import { lookup } from "mrmime";
 import sharp from "sharp";
 import axios from "axios";
-import { URL } from "node:url";
+import heicConvert from "heic-convert";
 
 const tryJSON = (value) => {
   try {
@@ -15,6 +18,28 @@ const tryJSON = (value) => {
 let resolve;
 let promise;
 const isLocal = false;
+
+const streamToBuffer = async (stream) => {
+  const chunks = [];
+  for await (const chunk of stream) {
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks);
+};
+
+const bufferToStream = (buffer) => {
+  const stream = new Readable();
+  stream.push(buffer);
+  stream.push(null);
+  return stream;
+};
+
+const heicConvertStream = async (stream) => {
+  const buffer = await streamToBuffer(stream);
+  const outputBuffer = await heicConvert({ buffer, format: "JPEG" });
+  const outStream = bufferToStream(outputBuffer);
+  return outStream;
+};
 
 export default async (req, res) => {
   const { url: src, options, ...queryOptions } = req.query;
@@ -30,7 +55,10 @@ export default async (req, res) => {
     const url = new URL(decodeURIComponent(src));
     const filename = url.pathname.split("/").pop();
     const stream = (await axios({ url, responseType: "stream" })).data;
-    const sharpInstance = stream.pipe(
+    const supportedStream = /\.hei(c|f)/gi.test(filename)
+      ? await heicConvertStream(stream)
+      : stream;
+    const sharpInstance = supportedStream.pipe(
       (options?.length > 1 && tryJSON(options))
         ? sharp({ limitInputPixels: false, ...JSON.parse(options) })
         : sharp({ limitInputPixels: false }),
